@@ -5,6 +5,7 @@ QM theory benchmark for force field fitting data
 
 # Add imports here
 from .data import *
+from. visualize import *
 
 # Handle versioneer
 from ._version import get_versions
