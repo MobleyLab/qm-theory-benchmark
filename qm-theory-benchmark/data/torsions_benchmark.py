@@ -90,7 +90,8 @@ def get_fb_score(spec_ener_dict):
     for key, values in other_ener.items():
         n_val = len(values)
         for i, value in enumerate(values):
-            score[key] += np.divide(np.sum(np.multiply(ref_weights[i], np.subtract(value, ref_ener[i]))),
+            score[key] += np.divide(np.sum(np.multiply(ref_weights[i], np.subtract(value, ref_ener[i]) * np.subtract(
+                value, ref_ener[i]))),
                                     np.sum(ref_weights[i]))
         score[key] = score[key] / n_val
     return score
@@ -103,7 +104,11 @@ def main():
     print("\n".join(matches))
     ds = client.get_collection("TorsionDriveDataset", 'OpenFF Theory Benchmarking Set v1.0')
     ds.status()
-    specifications = ds.list_specifications().index.to_list()
+    specifications = ['default', 'B3LYP-D3BJ/DEF2-TZVP', 'B3LYP-D3BJ/DEF2-TZVPP',
+                       'B3LYP-D3BJ/DEF2-QZVP', 'B3LYP-D3BJ/6-31+G**',
+                      'B3LYP-D3BJ/6-311+G**']
+    #, 'B3LYP-D3BJ/DEF2-TZVPD', 'B3LYP-D3BJ/DEF2-TZVPPD', 'WB97X-D3BJ/DZVP', 'PW6B95-D3BJ/DZVP', 'B3LYP-D3MBJ/DZVP']
+    # ds.list_specifications().index.to_list()
     print(specifications)
     rcParams.update({'font.size': 14})
     KELLYS_COLORS = ["#ebce2b", "#702c8c", "#db6917", "#96cde6", "#ba1c30", "#c0bd7f", "#7f7e80", "#5fa641", "#d485b2",
@@ -113,7 +118,10 @@ def main():
 
     pdf = PdfPages('../outputs/torsions_alltogther.pdf')
     spec_ener_dict = defaultdict(list)
+    key_to_delete = []
     for i, entry in enumerate(ds.data.records.values()):
+        # if i>1:
+        #     break
         fig, ax = plt.subplots(figsize=[10, 8])
         for j, spec in enumerate(specifications):
             td_record = ds.get_record(name=entry.name, specification=spec)
@@ -131,7 +139,7 @@ def main():
             energy_min = min(energies)
             relative_energies = [(x - energy_min) * HARTREE_TO_KCALMOL for x in energies]
             spec_ener_dict[spec].append(relative_energies)
-            if spec == 'B3LYP-D3BJ/DEF2-QZVP':
+            if spec == REF_SPEC:
                 ax.plot(angles, relative_energies, '-D', label=spec, linewidth=3.0, c='k', markersize=10)
             else:
                 ax.plot(angles, relative_energies, '-o', label=spec, linewidth=2.0, c=KELLYS_COLORS[j])
@@ -150,13 +158,37 @@ def main():
         newax.axis('off')
         plt.show()
         pdf.savefig(fig, dpi=600, bbox_inches='tight')
-    pdf.close()
 
     fb_score = get_fb_score(spec_ener_dict)
     qb_score = get_qb_score(spec_ener_dict)
     table = []
+    xlabels = []
+    qb_vals = []
+    fb_vals = []
     for key, value in qb_score.items():
         table.append([key, "%.4f" % fb_score[key], "%.4f" % value])
+        xlabels.append(key)
+        qb_vals.append(qb_score[key])
+        fb_vals.append(fb_score[key])
+
+    fig, ax = plt.subplots(figsize=[10, 8])
+    # Width of a bar
+    width = 0.25
+
+    # Position of bars on x-axis
+    x_pos = np.arange(len(xlabels))
+
+    plt.bar(x_pos, qb_vals, width, label="QB score")
+    plt.bar(x_pos+width, fb_vals, width, label="FB score")
+    # Rotation of the bars names
+    plt.xticks(x_pos + width/2, xlabels, rotation=60, ha='right')
+    plt.xlabel('Scores of various methods wrt ' + REF_SPEC)
+    plt.ylabel('Dimensionless score')
+    plt.legend(loc='upper left', fontsize=12)
+    plt.show()
+    pdf.savefig(fig, dpi=600, bbox_inches='tight')
+    pdf.close()
+
     print(tabulate(table, headers=['Specification', 'FB score', 'QK score'], tablefmt='orgtbl'))
     print("* closer to zero the better")
 
