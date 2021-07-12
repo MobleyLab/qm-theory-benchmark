@@ -1,0 +1,9 @@
+Using B3LYP-D3BJ/DEF2-QZVP as a reference method the scores are: 
+| Specification         |   RMSE in dipole moments |   RMSE in dipole vector angle wrt ref |
+|-----------------------+--------------------------+---------------------------------------|
+| default               |                   1.8591 |                                0.741  |
+| B3LYP-D3BJ/DEF2-TZVP  |                   1.907  |                               13.8365 |
+| B3LYP-D3BJ/DEF2-TZVPP |                   1.7904 |                                0.954  |
+| B3LYP-D3BJ/6-31+G**   |                   2.1631 |                                0.5083 |
+| B3LYP-D3BJ/6-311+G**  |                   1.3087 |                                1.0704 |
+* closer to zero the better

@@ -59,7 +59,7 @@ def main():
     spec_dipole_angle_diff_dict = defaultdict(list)
     spec_dipole_mu_diff_dict = defaultdict(list)
     for i, entry in enumerate(ds.data.records.values()):
-        if i>0:
+        if i>2:
             break
         # getting the reference method dipoles
         td_record = ds.get_record(name=entry.name, specification=REF_SPEC)
@@ -69,9 +69,10 @@ def main():
             grid_final_opt_id = td_record.dict()['optimization_history'][key][-1]
             optrec = client.query_procedures(id=grid_final_opt_id)[0]
             ref_geo_dipole[key] = optrec.get_trajectory()[-1].properties.scf_dipole_moment
-        mu_diff_with_ref = defaultdict(float)
-        angle_diff_with_ref = defaultdict(float)
+
         for j, spec in enumerate(specifications):
+            mu_diff_with_ref = defaultdict(float)
+            angle_diff_with_ref = defaultdict(float)
             if spec == REF_SPEC:
                 continue
             td_record = ds.get_record(name=entry.name, specification=spec)
