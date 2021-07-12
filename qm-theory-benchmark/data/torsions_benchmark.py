@@ -2,7 +2,7 @@ import copy
 import io
 from ast import literal_eval
 from collections import defaultdict
-
+from re import match
 import matplotlib.pyplot as plt
 import numpy as np
 import qcportal as ptl
@@ -19,7 +19,7 @@ PARTICLE = unit.mole.create_unit(6.02214076e23 ** -1, "particle", "particle", )
 HARTREE_PER_PARTICLE = unit.hartree / PARTICLE
 HARTREE_TO_KCALMOL = HARTREE_PER_PARTICLE.conversion_factor_to(unit.kilocalorie_per_mole)
 BOLTZMANN_CONSTANT = unit.constants.BOLTZMANN_CONSTANT_kB
-REF_SPEC = 'B3LYP-D3BJ/DEF2-QZVP'
+REF_SPEC = 'MP2/heavy-aug-cc-pVTZ'
 
 
 def boltzmann_weight(value, temp=None):
@@ -102,6 +102,7 @@ def main():
     ds_list = client.list_collections('TorsionDriveDataset')
     matches = [x[1] for x in ds_list.index if (isinstance(x[1], str) and 'Theory Benchmark' in x[1])]
     print("\n".join(matches))
+    ref_ds = client.get_collection("OptimizationDataset", "OpenFF Theory Benchmarking Constrained Optimization Set MP2 heavy-aug-cc-pVTZ v1.0")
     ds = client.get_collection("TorsionDriveDataset", 'OpenFF Theory Benchmarking Set v1.0')
     ds.status()
     specifications = ['default', 'B3LYP-D3BJ/DEF2-TZVP', 'B3LYP-D3BJ/DEF2-TZVPP',
@@ -118,13 +119,32 @@ def main():
 
     pdf = PdfPages('../outputs/torsions_alltogther.pdf')
     spec_ener_dict = defaultdict(list)
-    key_to_delete = []
+
     for i, entry in enumerate(ds.data.records.values()):
-        # if i>1:
-        #     break
-        fig, ax = plt.subplots(figsize=[10, 8])
+        print(i, entry.name)
+        break_flag = 0
         for j, spec in enumerate(specifications):
             td_record = ds.get_record(name=entry.name, specification=spec)
+            if j == 0:
+                ref_angles = list(td_record.get_final_molecules().keys())
+                ref_angles = [gg[0] for gg in ref_angles]
+                try:
+                    ref_energies = []
+                    for id in range(24):
+                        optrec = ref_ds.get_record(name=entry.name+'-'+str(id), specification='default')
+                        # ref_energies.append(optrec.get_final_energy())
+                        ref_energies.append(optrec.dict()['energies'][0])
+                    ref_angles, ref_energies = zip(*sorted(zip(ref_angles, ref_energies)))
+                    # ref_angles = sorted(ref_angles)
+                    ref_energy_min = min(ref_energies)
+                    ref_relative_energies = [(x - ref_energy_min) * HARTREE_TO_KCALMOL for x in ref_energies]
+                    spec_ener_dict['MP2/heavy-aug-cc-pVTZ'].append(ref_relative_energies)
+                    fig, ax = plt.subplots(figsize=[10, 8])
+                    ax.plot(ref_angles, ref_relative_energies, '-D', label=REF_SPEC, linewidth=3.0, c='k',
+                            markersize=10)
+                except:
+                    break_flag = 1
+                    break
             final_energy_dict = td_record.dict()['final_energy_dict']
             dihedrals = td_record.dict()['keywords']['dihedrals'][0]
             angles = []
@@ -135,15 +155,15 @@ def main():
             for key, value in final_energy_dict.items():
                 angles.append(literal_eval(key)[0])
                 energies.append(value)
+
             angles, energies = zip(*sorted(zip(angles, energies)))
             energy_min = min(energies)
             relative_energies = [(x - energy_min) * HARTREE_TO_KCALMOL for x in energies]
             spec_ener_dict[spec].append(relative_energies)
-            if spec == REF_SPEC:
-                ax.plot(angles, relative_energies, '-D', label=spec, linewidth=3.0, c='k', markersize=10)
-            else:
-                ax.plot(angles, relative_energies, '-o', label=spec, linewidth=2.0, c=KELLYS_COLORS[j])
+            ax.plot(angles, relative_energies, '-o', label=spec, linewidth=2.0, c=KELLYS_COLORS[j])
 
+        if break_flag == 1:
+            continue
         plt.xlabel('Dihedral angle in degrees', )
         plt.ylabel('Relative energies in kcal/mol')
         plt.legend(loc='lower left', bbox_to_anchor=(1.04, 0), fontsize=12)
