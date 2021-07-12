@@ -2,7 +2,7 @@ import copy
 import io
 from ast import literal_eval
 from collections import defaultdict
-from re import match
+
 import matplotlib.pyplot as plt
 import numpy as np
 import qcportal as ptl
@@ -102,13 +102,14 @@ def main():
     ds_list = client.list_collections('TorsionDriveDataset')
     matches = [x[1] for x in ds_list.index if (isinstance(x[1], str) and 'Theory Benchmark' in x[1])]
     print("\n".join(matches))
-    ref_ds = client.get_collection("OptimizationDataset", "OpenFF Theory Benchmarking Constrained Optimization Set MP2 heavy-aug-cc-pVTZ v1.0")
+    ref_ds = client.get_collection("OptimizationDataset",
+                                   "OpenFF Theory Benchmarking Constrained Optimization Set MP2 heavy-aug-cc-pVTZ v1.0")
     ds = client.get_collection("TorsionDriveDataset", 'OpenFF Theory Benchmarking Set v1.0')
     ds.status()
     specifications = ['default', 'B3LYP-D3BJ/DEF2-TZVP', 'B3LYP-D3BJ/DEF2-TZVPP',
-                       'B3LYP-D3BJ/DEF2-QZVP', 'B3LYP-D3BJ/6-31+G**',
+                      'B3LYP-D3BJ/DEF2-QZVP', 'B3LYP-D3BJ/6-31+G**',
                       'B3LYP-D3BJ/6-311+G**']
-    #, 'B3LYP-D3BJ/DEF2-TZVPD', 'B3LYP-D3BJ/DEF2-TZVPPD', 'WB97X-D3BJ/DZVP', 'PW6B95-D3BJ/DZVP', 'B3LYP-D3MBJ/DZVP']
+    # , 'B3LYP-D3BJ/DEF2-TZVPD', 'B3LYP-D3BJ/DEF2-TZVPPD', 'WB97X-D3BJ/DZVP', 'PW6B95-D3BJ/DZVP', 'B3LYP-D3MBJ/DZVP']
     # ds.list_specifications().index.to_list()
     print(specifications)
     rcParams.update({'font.size': 14})
@@ -126,14 +127,16 @@ def main():
         for j, spec in enumerate(specifications):
             td_record = ds.get_record(name=entry.name, specification=spec)
             if j == 0:
-                ref_angles = list(td_record.get_final_molecules().keys())
-                ref_angles = [gg[0] for gg in ref_angles]
+                trec = ds.get_record(name=entry.name, specification='B3LYP-D3BJ/DEF2-TZVPD')
                 try:
+                    ref_angles = list(trec.get_final_results().keys())
+                    ref_angles = [gg[0] for gg in ref_angles]
+                    print(ref_angles)
                     ref_energies = []
                     for id in range(24):
-                        optrec = ref_ds.get_record(name=entry.name+'-'+str(id), specification='default')
-                        # ref_energies.append(optrec.get_final_energy())
-                        ref_energies.append(optrec.dict()['energies'][0])
+                        optrec = ref_ds.get_record(name=entry.name + '-' + str(id), specification='default')
+                        ref_energies.append(optrec.get_final_energy())
+                        # ref_energies.append(optrec.dict()['energies'][0])
                     ref_angles, ref_energies = zip(*sorted(zip(ref_angles, ref_energies)))
                     # ref_angles = sorted(ref_angles)
                     ref_energy_min = min(ref_energies)
@@ -199,9 +202,9 @@ def main():
     x_pos = np.arange(len(xlabels))
 
     plt.bar(x_pos, qb_vals, width, label="QB score")
-    plt.bar(x_pos+width, fb_vals, width, label="FB score")
+    plt.bar(x_pos + width, fb_vals, width, label="FB score")
     # Rotation of the bars names
-    plt.xticks(x_pos + width/2, xlabels, rotation=60, ha='right')
+    plt.xticks(x_pos + width / 2, xlabels, rotation=60, ha='right')
     plt.xlabel('Scores of various methods wrt ' + REF_SPEC)
     plt.ylabel('Dimensionless score')
     plt.legend(loc='upper left', fontsize=12)
