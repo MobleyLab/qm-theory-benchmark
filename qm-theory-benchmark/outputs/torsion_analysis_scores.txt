@@ -1,11 +1,10 @@
-Using B3LYP-D3BJ/DEF2-QZVP as a reference method the scores are: 
-| Specification          |   FB score |   QK score |
-|------------------------+------------+------------|
-| default                |     0.1138 |     0.3153 |
-| B3LYP-D3BJ/DEF2-TZVP   |     0.039  |     0.0794 |
-| B3LYP-D3BJ/DEF2-TZVPD  |    -0.9853 |     2.7127 |
-| B3LYP-D3BJ/DEF2-TZVPP  |     0.0362 |     0.0691 |
-| B3LYP-D3BJ/DEF2-TZVPPD |    -1.0558 |     2.7435 |
-| B3LYP-D3BJ/6-31+G**    |     0.0754 |     0.2642 |
-| B3LYP-D3BJ/6-311+G**   |    -0.0198 |     0.2533 |
+Using MP2/heavy-aug-cc-pVTZ as a reference method the scores are: 
+| Specification         |   FB score |   QK score |
+|-----------------------+------------+------------|
+| default               |     8.5056 |     2.2799 |
+| B3LYP-D3BJ/DEF2-TZVP  |     8.5825 |     2.2822 |
+| B3LYP-D3BJ/DEF2-TZVPP |     8.5902 |     2.2823 |
+| B3LYP-D3BJ/DEF2-QZVP  |     8.6001 |     2.2747 |
+| B3LYP-D3BJ/6-31+G**   |     8.4897 |     2.2775 |
+| B3LYP-D3BJ/6-311+G**  |     8.6126 |     2.2782 |
 * closer to zero the better
