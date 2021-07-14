@@ -1,10 +1,10 @@
 Using MP2/heavy-aug-cc-pVTZ as a reference method the scores are: 
 | Specification         |   FB score |   QK score |
 |-----------------------+------------+------------|
-| default               |     8.5056 |     2.2799 |
-| B3LYP-D3BJ/DEF2-TZVP  |     8.5825 |     2.2822 |
-| B3LYP-D3BJ/DEF2-TZVPP |     8.5902 |     2.2823 |
-| B3LYP-D3BJ/DEF2-QZVP  |     8.6001 |     2.2747 |
-| B3LYP-D3BJ/6-31+G**   |     8.4897 |     2.2775 |
-| B3LYP-D3BJ/6-311+G**  |     8.6126 |     2.2782 |
+| default               |     1.3682 |     0.9268 |
+| B3LYP-D3BJ/DEF2-TZVP  |     1.4087 |     0.9305 |
+| B3LYP-D3BJ/DEF2-TZVPP |     1.4264 |     0.9376 |
+| B3LYP-D3BJ/DEF2-QZVP  |     1.4442 |     0.9416 |
+| B3LYP-D3BJ/6-31+G**   |     1.5437 |     0.9713 |
+| B3LYP-D3BJ/6-311+G**  |     1.8219 |     1.0168 |
 * closer to zero the better

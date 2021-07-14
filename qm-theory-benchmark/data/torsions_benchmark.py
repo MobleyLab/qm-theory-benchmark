@@ -2,7 +2,7 @@ import copy
 import io
 from ast import literal_eval
 from collections import defaultdict
-
+from rdkit.Chem.rdMolTransforms import GetDihedralDeg
 import matplotlib.pyplot as plt
 import numpy as np
 import qcportal as ptl
@@ -12,7 +12,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from openff.toolkit.topology import Molecule
 from simtk import unit
 from tabulate import tabulate
-
+import math
 from visualization import show_oemol_struc
 
 PARTICLE = unit.mole.create_unit(6.02214076e23 ** -1, "particle", "particle", )
@@ -126,17 +126,21 @@ def main():
         break_flag = 0
         for j, spec in enumerate(specifications):
             td_record = ds.get_record(name=entry.name, specification=spec)
+            dihedrals = td_record.dict()['keywords']['dihedrals'][0]
             if j == 0:
-                trec = ds.get_record(name=entry.name, specification='B3LYP-D3BJ/DEF2-TZVPD')
                 try:
-                    ref_angles = list(trec.get_final_results().keys())
-                    ref_angles = [gg[0] for gg in ref_angles]
-                    print(ref_angles)
                     ref_energies = []
+                    ref_angles = []
                     for id in range(24):
                         optrec = ref_ds.get_record(name=entry.name + '-' + str(id), specification='default')
+                        offmol = Molecule.from_qcschema(entry.dict())
+                        offmol.add_conformer(optrec.get_initial_molecule().geometry * unit.bohr)
+                        rdmol = offmol.to_rdkit()
+                        ref_angles.append(round(GetDihedralDeg(rdmol.GetConformer(0), dihedrals[0], dihedrals[1],
+                                                             dihedrals[2], dihedrals[3])))
                         ref_energies.append(optrec.get_final_energy())
                         # ref_energies.append(optrec.dict()['energies'][0])
+                    print(ref_angles)
                     ref_angles, ref_energies = zip(*sorted(zip(ref_angles, ref_energies)))
                     # ref_angles = sorted(ref_angles)
                     ref_energy_min = min(ref_energies)
@@ -149,7 +153,7 @@ def main():
                     break_flag = 1
                     break
             final_energy_dict = td_record.dict()['final_energy_dict']
-            dihedrals = td_record.dict()['keywords']['dihedrals'][0]
+
             angles = []
             energies = []
             if not bool(final_energy_dict):
