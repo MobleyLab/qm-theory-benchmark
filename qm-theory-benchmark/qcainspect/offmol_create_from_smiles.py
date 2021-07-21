@@ -1,5 +1,6 @@
-from openff.toolkit.topology import Molecule, Topology
 import click
+from openff.toolkit.topology import Molecule
+from openff.toolkit.utils.toolkits import ToolkitRegistry, OpenEyeToolkitWrapper, RDKitToolkitWrapper
 
 @click.command()
 @click.option(
@@ -25,11 +26,13 @@ import click
     default="sdf",
     help="file format, default is sdf"
 )
-
 def main(smiles, file, file_format):
-    offmol = Molecule.from_smiles(smiles, allow_undefined_stereo=True)
-    offmol.generate_conformers()
+    toolkit_precedence = [RDKitToolkitWrapper]
+    toolkit_registry = ToolkitRegistry(toolkit_precedence)
+    offmol = Molecule.from_smiles(smiles, allow_undefined_stereo=True, toolkit_registry=toolkit_registry)
+    offmol.generate_conformers(toolkit_registry=toolkit_registry)
     offmol.to_file(file_path=file, file_format=file_format)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()
