@@ -1,25 +1,25 @@
 import copy
 import io
-from ast import literal_eval
 from collections import defaultdict
-from rdkit.Chem.rdMolTransforms import GetDihedralDeg
+
+import click
 import matplotlib.pyplot as plt
 import numpy as np
-import qcportal as ptl
+import pandas as pd
 from PIL import Image
 from matplotlib import rcParams
 from matplotlib.backends.backend_pdf import PdfPages
 from openff.toolkit.topology import Molecule
 from simtk import unit
 from tabulate import tabulate
-import math
+
 from visualization import show_oemol_struc
 
 PARTICLE = unit.mole.create_unit(6.02214076e23 ** -1, "particle", "particle", )
 HARTREE_PER_PARTICLE = unit.hartree / PARTICLE
 HARTREE_TO_KCALMOL = HARTREE_PER_PARTICLE.conversion_factor_to(unit.kilocalorie_per_mole)
 BOLTZMANN_CONSTANT = unit.constants.BOLTZMANN_CONSTANT_kB
-REF_SPEC = 'MP2/heavy-aug-cc-pVTZ'
+REF_SPEC = 'MP2/heavy-aug-cc-pVTZ-constrained'
 
 
 def boltzmann_weight(value, temp=None):
@@ -39,7 +39,7 @@ def boltzmann_weight(value, temp=None):
 
 def weight_fn(value):
     """
-        weights as per forcebalance when the energy falls into different ranges, the thresholds are in kcal/mol
+        Weights as per forcebalance when the relative energy falls into different ranges, the thresholds are in kcal/mol
         :param value:
         :return:
         """
@@ -49,6 +49,48 @@ def weight_fn(value):
         return np.sqrt(1 + (value - 1) * (value - 1))
     elif value >= 5:
         return 0
+
+
+def get_mae_score(spec_ener_dict):
+    """
+    Gives the RMSE of each key/spec
+    :param spec_ener_dict:
+    :return:
+    """
+
+    ref_ener = spec_ener_dict[REF_SPEC]
+    other_ener = copy.deepcopy(spec_ener_dict)
+    other_ener.pop(REF_SPEC)
+    score = defaultdict(float)
+    for key, values in other_ener.items():
+        n_val = len(values)
+        for i, value in enumerate(values):
+            n_grid = len(value[1])
+            ener_diff_abs = np.abs(np.subtract(value[1], ref_ener[i][1]))
+            score[key] += np.sum(ener_diff_abs / n_grid)
+        score[key] = score[key] / n_val
+    return score
+
+
+def get_rmse_score(spec_ener_dict):
+    """
+    Gives the RMSE of each key/spec
+    :param spec_ener_dict:
+    :return:
+    """
+
+    ref_ener = spec_ener_dict[REF_SPEC]
+    other_ener = copy.deepcopy(spec_ener_dict)
+    other_ener.pop(REF_SPEC)
+    score = defaultdict(float)
+    for key, values in other_ener.items():
+        n_val = len(values)
+        for i, value in enumerate(values):
+            n_grid = len(value[1])
+            ener_diff_sqrd = np.multiply(np.subtract(value[1], ref_ener[i][1]), np.subtract(value[1], ref_ener[i][1]))
+            score[key] += np.sqrt(np.sum(ener_diff_sqrd / n_grid))
+        score[key] = score[key] / n_val
+    return score
 
 
 def get_qb_score(spec_ener_dict):
@@ -62,13 +104,13 @@ def get_qb_score(spec_ener_dict):
     ref_ener = spec_ener_dict[REF_SPEC]
     other_ener = copy.deepcopy(spec_ener_dict)
     other_ener.pop(REF_SPEC)
-    boltzmann_factor = [list(map(boltzmann_weight, sub_list)) for sub_list in ref_ener]
+    boltzmann_factor = [list(map(boltzmann_weight, sub_list[1])) for sub_list in ref_ener]
     score = defaultdict(float)
     for key, values in other_ener.items():
         n_val = len(values)
         for i, value in enumerate(values):
-            n_grid = len(value)
-            ener_diff_sqrd = np.multiply(np.subtract(value, ref_ener[i]), np.subtract(value, ref_ener[i]))
+            n_grid = len(value[1])
+            ener_diff_sqrd = np.multiply(np.subtract(value[1], ref_ener[i][1]), np.subtract(value[1], ref_ener[i][1]))
             score[key] += np.sqrt(np.sum(np.multiply(boltzmann_factor[i], ener_diff_sqrd)) / n_grid)
         score[key] = score[key] / n_val
     return score
@@ -82,99 +124,89 @@ def get_fb_score(spec_ener_dict):
         :param spec_ener_dict: dict of energy lists per specification
         :return score: a list of cumulative scores for all molecules per specification
         """
-    ref_ener = spec_ener_dict[REF_SPEC]
+
+    ref_ener = df.loc[REF_SPEC]
     other_ener = copy.deepcopy(spec_ener_dict)
     other_ener.pop(REF_SPEC)
-    ref_weights = [list(map(weight_fn, sub_list)) for sub_list in ref_ener]
+    ref_weights = [list(map(weight_fn, sub_list[1])) for sub_list in ref_ener]
     score = defaultdict(float)
     for key, values in other_ener.items():
         n_val = len(values)
         for i, value in enumerate(values):
-            score[key] += np.divide(np.sum(np.multiply(ref_weights[i], np.subtract(value, ref_ener[i]) * np.subtract(
-                value, ref_ener[i]))),
+            score[key] += np.divide(np.sum(np.multiply(ref_weights[i], np.subtract(value[1], ref_ener[i][1]) *
+                                                       np.subtract(
+                                                           value[1], ref_ener[i][1]))),
                                     np.sum(ref_weights[i]))
         score[key] = score[key] / n_val
     return score
 
 
-def main():
-    client = ptl.FractalClient()
-    ds_list = client.list_collections('TorsionDriveDataset')
-    matches = [x[1] for x in ds_list.index if (isinstance(x[1], str) and 'Theory Benchmark' in x[1])]
-    print("\n".join(matches))
-    ref_ds = client.get_collection("OptimizationDataset",
-                                   "OpenFF Theory Benchmarking Constrained Optimization Set MP2 heavy-aug-cc-pVTZ v1.0")
-    ds = client.get_collection("TorsionDriveDataset", 'OpenFF Theory Benchmarking Set v1.0')
-    ds.status()
-    specifications = ['default', 'B3LYP-D3BJ/DEF2-TZVP', 'B3LYP-D3BJ/DEF2-TZVPP',
-                      'B3LYP-D3BJ/DEF2-QZVP', 'B3LYP-D3BJ/6-31+G**',
-                      'B3LYP-D3BJ/6-311+G**']
-    # , 'B3LYP-D3BJ/DEF2-TZVPD', 'B3LYP-D3BJ/DEF2-TZVPPD', 'WB97X-D3BJ/DZVP', 'PW6B95-D3BJ/DZVP', 'B3LYP-D3MBJ/DZVP']
-    # ds.list_specifications().index.to_list()
-    print(specifications)
+@click.command()
+@click.option(
+    "--data_pickle",
+    "data_pickle",
+    type=click.STRING,
+    required=False,
+    default='./torsiondrive_data.pkl',
+    help="pickle file in which the energies dict is stored"
+)
+def main(data_pickle):
+    df = pd.read_pickle(data_pickle)
+
     rcParams.update({'font.size': 14})
     KELLYS_COLORS = ["#ebce2b", "#702c8c", "#db6917", "#96cde6", "#ba1c30", "#c0bd7f", "#7f7e80", "#5fa641", "#d485b2",
                      "#4277b6", "#df8461", "#463397", "#e1a11a", "#91218c", "#e8e948", "#7e1510", "#92ae31", "#6f340d",
                      "#d32b1e", "#2b3514",
                      ]
 
-    pdf = PdfPages('../outputs/torsions_alltogther.pdf')
-    spec_ener_dict = defaultdict(list)
+    pdf = PdfPages('../outputs/test_torsions_alltogther.pdf')
 
-    for i, entry in enumerate(ds.data.records.values()):
-        print(i, entry.name)
-        break_flag = 0
-        for j, spec in enumerate(specifications):
-            td_record = ds.get_record(name=entry.name, specification=spec)
-            dihedrals = td_record.dict()['keywords']['dihedrals'][0]
-            if j == 0:
-                try:
-                    ref_energies = []
-                    ref_angles = []
-                    for id in range(24):
-                        optrec = ref_ds.get_record(name=entry.name + '-' + str(id), specification='default')
-                        offmol = Molecule.from_qcschema(entry.dict())
-                        offmol.add_conformer(optrec.get_initial_molecule().geometry * unit.bohr)
-                        rdmol = offmol.to_rdkit()
-                        ref_angles.append(round(GetDihedralDeg(rdmol.GetConformer(0), dihedrals[0], dihedrals[1],
-                                                             dihedrals[2], dihedrals[3])))
-                        ref_energies.append(optrec.get_final_energy())
-                        # ref_energies.append(optrec.dict()['energies'][0])
-                    print(ref_angles)
-                    ref_angles, ref_energies = zip(*sorted(zip(ref_angles, ref_energies)))
-                    # ref_angles = sorted(ref_angles)
-                    ref_energy_min = min(ref_energies)
-                    ref_relative_energies = [(x - ref_energy_min) * HARTREE_TO_KCALMOL for x in ref_energies]
-                    spec_ener_dict['MP2/heavy-aug-cc-pVTZ'].append(ref_relative_energies)
-                    fig, ax = plt.subplots(figsize=[10, 8])
-                    ax.plot(ref_angles, ref_relative_energies, '-D', label=REF_SPEC, linewidth=3.0, c='k',
-                            markersize=10)
-                except:
-                    break_flag = 1
-                    break
-            final_energy_dict = td_record.dict()['final_energy_dict']
+    specs = list(df.columns)
+    specs.remove('MP2/aug-cc-pVTZ')
+    specs.remove('MP2/heavy-aug-cc-pVTZ')
+    specs.remove('WB97X-D3BJ/DZVP')
+    specs.remove('PW6B95-D3BJ/DZVP')
+    specs.remove('B3LYP-D3MBJ/DZVP')
 
-            angles = []
-            energies = []
-            if not bool(final_energy_dict):
-                print(spec, entry.dict()['object_map'][spec], " is empty")
-                continue
-            for key, value in final_energy_dict.items():
-                angles.append(literal_eval(key)[0])
-                energies.append(value)
+    rmse = defaultdict(dict)
+    mae = defaultdict(dict)
+    for i, index in enumerate(df.index):
+        rmse['index'] = {}
+        mae['index'] = {}
 
-            angles, energies = zip(*sorted(zip(angles, energies)))
-            energy_min = min(energies)
-            relative_energies = [(x - energy_min) * HARTREE_TO_KCALMOL for x in energies]
-            spec_ener_dict[spec].append(relative_energies)
-            ax.plot(angles, relative_energies, '-o', label=spec, linewidth=2.0, c=KELLYS_COLORS[j])
-
-        if break_flag == 1:
+        try:
+            ref_angles = np.array(df.loc[index, REF_SPEC][0]['angles'])
+            ref_energies = np.array(df.loc[index, REF_SPEC][0]['relative_energies']) * HARTREE_TO_KCALMOL
+            if ref_angles[0] == -180:
+                ref_angles = np.append(ref_angles[1:], ref_angles[0] + 360)
+                ref_energies = np.append(ref_energies[1:], ref_energies[0])
+            mapped_smiles = df.loc[index, REF_SPEC][0]['mapped_smiles']
+            dihedrals = df.loc[index, REF_SPEC][0]['dihedrals']
+            fig, ax = plt.subplots(figsize=[10, 8])
+            ax.plot(ref_angles, ref_energies, '-D', label=REF_SPEC, linewidth=3.0, c='k',
+                    markersize=10)
+        except:
             continue
+        for j, spec in enumerate(specs):
+            if spec == REF_SPEC:
+                continue
+            try:
+                angles = np.array(df.loc[index, spec][0]['angles'])
+                energies = np.array(df.loc[index, spec][0]['relative_energies']) * HARTREE_TO_KCALMOL
+                rmse_energies = np.sqrt(np.mean((energies - ref_energies) ** 2))
+                mae_energies = np.mean(np.abs(energies - ref_energies))
+                rmse['index'][spec] = rmse_energies
+                mae['index'][spec] = mae_energies
+                if spec == 'default':
+                    spec = 'B3LYP-D3BJ/DZVP'
+                ax.plot(angles, energies, '-o', label=spec, linewidth=2.0, c=KELLYS_COLORS[j + 1])
+            except:
+                continue
+
+
         plt.xlabel('Dihedral angle in degrees', )
         plt.ylabel('Relative energies in kcal/mol')
         plt.legend(loc='lower left', bbox_to_anchor=(1.04, 0), fontsize=12)
-        mapped_smiles = ds.get_entry(entry.name).attributes["canonical_isomeric_explicit_hydrogen_mapped_smiles"]
         offmol = Molecule.from_mapped_smiles(mapped_smiles)
         oemol = offmol.to_openeye()
         image = show_oemol_struc(oemol, torsions=True, atom_indices=dihedrals, width=600, height=500)
@@ -186,18 +218,30 @@ def main():
         plt.show()
         pdf.savefig(fig, dpi=600, bbox_inches='tight')
 
-    fb_score = get_fb_score(spec_ener_dict)
-    qb_score = get_qb_score(spec_ener_dict)
     table = []
     xlabels = []
-    qb_vals = []
-    fb_vals = []
-    for key, value in qb_score.items():
-        table.append([key, "%.4f" % fb_score[key], "%.4f" % value])
-        xlabels.append(key)
-        qb_vals.append(qb_score[key])
-        fb_vals.append(fb_score[key])
+    rmse_vals = []
+    mae_vals = []
 
+
+
+    for spec in specs:
+        if spec == REF_SPEC:
+            continue
+        else:
+            xlabels.append(spec)
+            tmp1 = 0
+            tmp2 = 0
+            try:
+                for key, value in rmse.items():
+                    tmp1 += rmse[key][spec]
+                    tmp2 += mae[key][spec]
+            except:
+                pass
+        rmse_vals.append(tmp1)
+        mae_vals.append(tmp2)
+        table.append([spec, "%.4f" % tmp1, "%.4f" % tmp2])
+    # RMSE, MAE
     fig, ax = plt.subplots(figsize=[10, 8])
     # Width of a bar
     width = 0.25
@@ -205,18 +249,19 @@ def main():
     # Position of bars on x-axis
     x_pos = np.arange(len(xlabels))
 
-    plt.bar(x_pos, qb_vals, width, label="QB score")
-    plt.bar(x_pos + width, fb_vals, width, label="FB score")
+    plt.bar(x_pos, rmse_vals, width, label="RMSE")
+    plt.bar(x_pos + width, mae_vals, width, label="MAE")
     # Rotation of the bars names
     plt.xticks(x_pos + width / 2, xlabels, rotation=60, ha='right')
     plt.xlabel('Scores of various methods wrt ' + REF_SPEC)
-    plt.ylabel('Dimensionless score')
+    plt.ylabel('RMSE, MAE in kcal/mol')
     plt.legend(loc='upper left', fontsize=12)
     plt.show()
     pdf.savefig(fig, dpi=600, bbox_inches='tight')
     pdf.close()
 
-    print(tabulate(table, headers=['Specification', 'FB score', 'QK score'], tablefmt='orgtbl'))
+    print(tabulate(table, headers=['Mol index', 'RMSE in kcal/mol', 'MAE in kcal/mol'],
+                   tablefmt='orgtbl'))
     print("* closer to zero the better")
 
     with open('../outputs/torsion_analysis_scores.txt', 'w') as f:
