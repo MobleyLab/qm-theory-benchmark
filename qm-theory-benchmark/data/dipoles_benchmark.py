@@ -1,5 +1,6 @@
 from collections import defaultdict
-
+import pandas as pd
+import click
 import matplotlib.pyplot as plt
 import numpy as np
 import qcportal as ptl
@@ -11,8 +12,11 @@ from tabulate import tabulate
 PARTICLE = unit.mole.create_unit(6.02214076e23 ** -1, "particle", "particle", )
 HARTREE_PER_PARTICLE = unit.hartree / PARTICLE
 HARTREE_TO_KCALMOL = HARTREE_PER_PARTICLE.conversion_factor_to(unit.kilocalorie_per_mole)
+ESU_BOHR = unit.elementary_charge * unit.bohr
+ESU_BOHR_TO_DEBYE = ESU_BOHR.conversion_factor_to(unit.debye)
 BOLTZMANN_CONSTANT = unit.constants.BOLTZMANN_CONSTANT_kB
-REF_SPEC = 'B3LYP-D3BJ/DEF2-QZVP'
+REF_SPEC = 'MP2/heavy-aug-cc-pVTZ-constrained'
+
 
 def diff_between_vectors(vec1, vec2):
     """
@@ -27,66 +31,59 @@ def diff_between_vectors(vec1, vec2):
     unit_vector_1 = vec1 / mu1
     unit_vector_2 = vec2 / mu2
     dot_product = np.dot(unit_vector_1, unit_vector_2)
-    angle = np.pi * np.arccos(dot_product) #* unit.degrees
+    angle = np.pi * np.arccos(dot_product)  # * unit.degrees
     return mu_diff, angle
 
-
-
-def main():
-
-    #create a qcfractal client instance to connect to QCA server
-    client = ptl.FractalClient()
-    ds_list = client.list_collections('TorsionDriveDataset')
-    matches = [x[1] for x in ds_list.index if (isinstance(x[1], str) and 'Theory Benchmark' in x[1])]
-    print("\n".join(matches))
-    # download the torsiondrive dataset
-    ds = client.get_collection("TorsionDriveDataset", 'OpenFF Theory Benchmarking Set v1.0')
-    ds.status()
-
-    specifications = ['default', 'B3LYP-D3BJ/DEF2-TZVP', 'B3LYP-D3BJ/DEF2-TZVPP',
-                       'B3LYP-D3BJ/DEF2-QZVP', 'B3LYP-D3BJ/6-31+G**',
-                      'B3LYP-D3BJ/6-311+G**']
-    #, 'B3LYP-D3BJ/DEF2-TZVPD', 'B3LYP-D3BJ/DEF2-TZVPPD', 'WB97X-D3BJ/DZVP', 'PW6B95-D3BJ/DZVP', 'B3LYP-D3MBJ/DZVP']
-    # ds.list_specifications().index.to_list()
-    print(specifications)
+@click.command()
+@click.option(
+    "--data_pickle",
+    "data_pickle",
+    type=click.STRING,
+    required=False,
+    default='./torsiondrive_data.pkl',
+    help="pickle file in which the energies dict is stored"
+)
+def main(data_pickle):
+    df = pd.read_pickle(data_pickle)
     rcParams.update({'font.size': 14})
     KELLYS_COLORS = ["#ebce2b", "#702c8c", "#db6917", "#96cde6", "#ba1c30", "#c0bd7f", "#7f7e80", "#5fa641", "#d485b2",
                      "#4277b6", "#df8461", "#463397", "#e1a11a", "#91218c", "#e8e948", "#7e1510", "#92ae31", "#6f340d",
                      "#d32b1e", "#2b3514",
                      ]
-
+    specs = list(df.columns)
+    specs.remove('MP2/aug-cc-pVTZ')
+    specs.remove('MP2/heavy-aug-cc-pVTZ')
+    specs.remove('WB97X-D3BJ/DZVP')
+    specs.remove('PW6B95-D3BJ/DZVP')
+    specs.remove('B3LYP-D3MBJ/DZVP')
     pdf = PdfPages('../outputs/dipoles_alltogther.pdf')
     spec_dipole_angle_diff_dict = defaultdict(list)
     spec_dipole_mu_diff_dict = defaultdict(list)
-    for i, entry in enumerate(ds.data.records.values()):
-        if i>2:
-            break
-        # getting the reference method dipoles
-        td_record = ds.get_record(name=entry.name, specification=REF_SPEC)
-        ref_geo_dipole = defaultdict(list)
-        angle_keys = td_record.dict()['final_energy_dict'].keys()
-        for key in angle_keys:
-            grid_final_opt_id = td_record.dict()['optimization_history'][key][-1]
-            optrec = client.query_procedures(id=grid_final_opt_id)[0]
-            ref_geo_dipole[key] = optrec.get_trajectory()[-1].properties.scf_dipole_moment
-
-        for j, spec in enumerate(specifications):
+    for i, index in enumerate(df.index):
+        try:
+            ref_dipoles = np.array(df.loc[index, REF_SPEC][0]['dipoles']) * ESU_BOHR_TO_DEBYE
+            ref_angles = np.array(df.loc[index, REF_SPEC][0]['angles'])
+            if ref_angles[0] == -180:
+                ref_angles = np.append(ref_angles[1:], ref_angles[0] + 360)
+                ref_dipoles = np.append(ref_dipoles[1:], ref_dipoles[0])
+        except:
+            continue
+        for j, spec in enumerate(specs):
             mu_diff_with_ref = defaultdict(float)
             angle_diff_with_ref = defaultdict(float)
             if spec == REF_SPEC:
                 continue
-            td_record = ds.get_record(name=entry.name, specification=spec)
-            angle_keys = td_record.dict()['final_energy_dict'].keys()
-            n_grid = len(angle_keys)
-            for key in angle_keys:
-                grid_final_opt_id = td_record.dict()['optimization_history'][key][-1]
-                optrec = client.query_procedures(id=grid_final_opt_id)[0]
-                final_geo_dipole = optrec.get_trajectory()[-1].properties.scf_dipole_moment
-                mu_diff, angle_diff = diff_between_vectors(final_geo_dipole, ref_geo_dipole[key])
-                mu_diff_with_ref[key] += mu_diff * mu_diff
-                angle_diff_with_ref[key] += angle_diff * angle_diff
-            angle_diff_with_ref[key] = np.sqrt(angle_diff_with_ref[key]/n_grid)
-            mu_diff_with_ref[key] = np.sqrt(mu_diff_with_ref[key]/n_grid)
+            try:
+                dipoles = np.array(df.loc[index, spec][0]['dipoles']) * ESU_BOHR_TO_DEBYE
+            except:
+                continue
+            n_grid = len(dipoles)
+            for k,item in enumerate(dipoles):
+                mu_diff, angle_diff = diff_between_vectors(item, ref_dipoles[k])
+                mu_diff_with_ref[spec] += mu_diff * mu_diff
+                angle_diff_with_ref[spec] += angle_diff * angle_diff
+            angle_diff_with_ref[spec] = np.sqrt(angle_diff_with_ref[spec] / n_grid)
+            mu_diff_with_ref[spec] = np.sqrt(mu_diff_with_ref[spec] / n_grid)
             spec_dipole_angle_diff_dict[spec] = np.mean(list(angle_diff_with_ref.values()))
             spec_dipole_mu_diff_dict[spec] = np.mean(list(mu_diff_with_ref.values()))
     table = []
@@ -106,9 +103,9 @@ def main():
     x_pos = np.arange(len(xlabels))
     plt.bar(x_pos, angle_vals, width, label="RMSE")
     # Rotation of the bars names
-    plt.xticks(x_pos + width/2, xlabels, rotation=60, ha='right')
-    plt.xlabel('RMSE of deviations in dipole of various methods wrt ' + REF_SPEC)
-    plt.ylabel('RMSE')
+    plt.xticks(x_pos + width / 2, xlabels, rotation=60, ha='right')
+    plt.xlabel('RMSE of deviations in dipole directions wrt ' + REF_SPEC)
+    plt.ylabel('RMSE in angles (degrees)')
     plt.legend(loc='upper left', fontsize=12)
     plt.show()
     pdf.savefig(fig, dpi=600, bbox_inches='tight')
@@ -120,22 +117,25 @@ def main():
     x_pos = np.arange(len(xlabels))
     plt.bar(x_pos, mu_vals, width, label="RMSE")
     # Rotation of the bars names
-    plt.xticks(x_pos + width/2, xlabels, rotation=60, ha='right')
+    plt.xticks(x_pos + width / 2, xlabels, rotation=60, ha='right')
     plt.xlabel('RMSE of dipole moments wrt ' + REF_SPEC)
-    plt.ylabel('RMSE')
+    plt.ylabel('RMSE in Debye')
     plt.legend(loc='upper left', fontsize=12)
     plt.show()
     pdf.savefig(fig, dpi=600, bbox_inches='tight')
     pdf.close()
 
-    print(tabulate(table, headers=['Specification', 'RMSE in deviations'], tablefmt='orgtbl'))
+    print(tabulate(table, headers=['Specification', 'RMSE in dipole moments (Debye)', 'RMSE in dipole vector angle wrt '
+                                                                                  'ref (degrees)'],
+                   tablefmt='orgtbl'))
     print("* closer to zero the better")
     #
     with open('../outputs/dipoles_analysis_scores.txt', 'w') as f:
         f.write("Using " + REF_SPEC + " as a reference method the scores are: \n")
-        f.write(tabulate(table, headers=['Specification', 'RMSE in dipole moments','RMSE in dipole vector angle wrt '
-                                                                                   'ref'
-                                                                                   ''],
+        f.write(tabulate(table, headers=['Specification', 'RMSE in dipole moments (Debye)', 'RMSE in dipole vector '
+                                                                                           'angle wrt '
+                                                                                    'ref (degrees)'
+                                                                                    ''],
                          tablefmt='orgtbl'))
         f.write("\n")
         f.write("* closer to zero the better")
