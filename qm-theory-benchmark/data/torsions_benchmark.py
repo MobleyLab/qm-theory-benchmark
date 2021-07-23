@@ -159,20 +159,19 @@ def main(data_pickle):
                      "#d32b1e", "#2b3514",
                      ]
 
-    pdf = PdfPages('../outputs/test_torsions_alltogther.pdf')
+    pdf = PdfPages('../outputs/functionals_torsions_alltogther.pdf')
 
-    specs = list(df.columns)
-    specs.remove('MP2/aug-cc-pVTZ')
-    specs.remove('MP2/heavy-aug-cc-pVTZ')
-    specs.remove('WB97X-D3BJ/DZVP')
-    specs.remove('PW6B95-D3BJ/DZVP')
-    specs.remove('B3LYP-D3MBJ/DZVP')
+    specs = ['default', 'WB97X-D3BJ/DZVP', 'PW6B95-D3BJ/DZVP', REF_SPEC]
+    # specs = list(df.columns)
+    # specs.remove('MP2/aug-cc-pVTZ')
+    # specs.remove('MP2/heavy-aug-cc-pVTZ')
+    # specs.remove('WB97X-D3BJ/DZVP')
+    # specs.remove('PW6B95-D3BJ/DZVP')
+    # specs.remove('B3LYP-D3MBJ/DZVP')
 
     rmse = defaultdict(dict)
     mae = defaultdict(dict)
     for i, index in enumerate(df.index):
-        rmse['index'] = {}
-        mae['index'] = {}
 
         try:
             ref_angles = np.array(df.loc[index, REF_SPEC][0]['angles'])
@@ -195,8 +194,10 @@ def main(data_pickle):
                 energies = np.array(df.loc[index, spec][0]['relative_energies']) * HARTREE_TO_KCALMOL
                 rmse_energies = np.sqrt(np.mean((energies - ref_energies) ** 2))
                 mae_energies = np.mean(np.abs(energies - ref_energies))
-                rmse['index'][spec] = rmse_energies
-                mae['index'][spec] = mae_energies
+                if spec == 'default':
+                    print('rmse:', rmse_energies)
+                rmse[index][spec] = rmse_energies
+                mae[index][spec] = mae_energies
                 if spec == 'default':
                     spec = 'B3LYP-D3BJ/DZVP'
                 ax.plot(angles, energies, '-o', label=spec, linewidth=2.0, c=KELLYS_COLORS[j + 1])
