@@ -1,0 +1,16 @@
+Using MP2/heavy-aug-cc-pVTZ as a reference method the scores are: 
+| Specification          |   RMSE in kcal/mol |   MAE in kcal/mol |
+|------------------------+--------------------+-------------------|
+| default                |             0.6438 |            0.4253 |
+| B3LYP-D3BJ/DEF2-TZVP   |             0.6547 |            0.4371 |
+| B3LYP-D3BJ/DEF2-QZVP   |             0.6504 |            0.4416 |
+| B3LYP-D3BJ/DEF2-TZVPP  |             0.6601 |            0.4414 |
+| B3LYP-D3BJ/DEF2-TZVPD  |             0.6641 |            0.4478 |
+| B3LYP-D3BJ/DEF2-TZVPPD |             0.6736 |            0.4518 |
+| B3LYP-D3MBJ/DZVP       |             0.9484 |            0.5018 |
+| WB97X-D3BJ/DZVP        |             0.7166 |            0.4776 |
+| PW6B95-D3BJ/DZVP       |             0.6433 |            0.4209 |
+| MP2/aug-cc-pVTZ        |             0.2326 |            0.1292 |
+| B3LYP-D3BJ/6-31+G**    |             0.6864 |            0.4369 |
+| B3LYP-D3BJ/6-311+G**   |             0.7535 |            0.486  |
+* closer to zero the better

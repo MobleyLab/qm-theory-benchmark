@@ -1,0 +1,16 @@
+Using MP2/heavy-aug-cc-pVTZ as a reference method the scores are: 
+| Specification          |   RMSE in dipole moments (Debye) |   RMSE in dipole vector angle wrt ref (degrees) |
+|------------------------+----------------------------------+-------------------------------------------------|
+| default                |                           0.7678 |                                          1.0055 |
+| B3LYP-D3BJ/DEF2-TZVP   |                           2.8788 |                                          1.2251 |
+| B3LYP-D3BJ/DEF2-QZVP   |                           0.7209 |                                          1.0288 |
+| B3LYP-D3BJ/DEF2-TZVPP  |                           0.838  |                                          1.1217 |
+| B3LYP-D3BJ/DEF2-TZVPD  |                           1.8175 |                                          1.1584 |
+| B3LYP-D3BJ/DEF2-TZVPPD |                           0.7404 |                                          1.1716 |
+| B3LYP-D3MBJ/DZVP       |                           0.6525 |                                          1.0368 |
+| WB97X-D3BJ/DZVP        |                           0.6216 |                                          1.0455 |
+| PW6B95-D3BJ/DZVP       |                           0.7381 |                                          1.0787 |
+| MP2/aug-cc-pVTZ        |                           0.6363 |                                          0.7803 |
+| B3LYP-D3BJ/6-31+G**    |                           0.9377 |                                          1.1264 |
+| B3LYP-D3BJ/6-311+G**   |                           0.6957 |                                          1.2072 |
+* closer to zero the better
