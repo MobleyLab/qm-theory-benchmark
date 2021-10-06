@@ -7,6 +7,8 @@ qm-theory-benchmark
 
 QM theory benchmark for force field fitting data
 
+Working draft of (accessible to OpenFF for now) is at https://docs.google.com/document/d/1tMoJY0J2E6uRltvL4gJv7ogW-sdNgm4DB5lcl4LFMNU/edit#
+
 ### Copyright
 
 Copyright (c) 2021, Pavan Behara
