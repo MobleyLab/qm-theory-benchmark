@@ -1,5 +1,5 @@
 from collections import defaultdict
-
+import json
 import click
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,7 +24,6 @@ ESU_BOHR_TO_DEBYE = ESU_BOHR.conversion_factor_to(unit.debye)
 BOLTZMANN_CONSTANT = unit.constants.BOLTZMANN_CONSTANT_kB
 REF_SPEC = "MP2/heavy-aug-cc-pVTZ"
 
-
 def diff_between_vectors(vec1, vec2):
     """
     gives out the magnitude difference and angle between vectors
@@ -38,7 +37,6 @@ def diff_between_vectors(vec1, vec2):
     unit_vector_1 = vec1 / mu1
     unit_vector_2 = vec2 / mu2
     dot_product = np.dot(unit_vector_1, unit_vector_2)
-    print(dot_product)
     angle = np.pi * np.arccos(np.round(dot_product, decimals=8))  # * unit.degrees
     return mu_diff, angle
 
@@ -49,12 +47,12 @@ def diff_between_vectors(vec1, vec2):
     "data_pickle",
     type=click.STRING,
     required=False,
-    default="/home/maverick/Desktop/OpenFF/dev-dir/qm-theory-benchmark/qm-theory-benchmark/qcainspect/spe-recs.pkl",
+    default="/home/maverick/Desktop/OpenFF/dev-dir/qm-theory-benchmark/qm-theory-benchmark/qca-util-scripts/spe-recs.pkl",
     help="pickle file in which the energies dict is stored",
 )
 def main(data_pickle):
     df_spe = pd.read_pickle(data_pickle)
-    df_mp2 = pd.read_pickle("./torsiondrive_data_init_mols.pkl")
+    df_mp2 = pd.read_pickle("./torsiondrive_data.pkl")
     rcParams.update({"font.size": 14})
 
     keywords_list = [
@@ -128,13 +126,18 @@ def main(data_pickle):
         "heavy-aug-cc-pvtz",
     ]
 
-    pdf = PdfPages("../outputs/dipoles_alltogther_same_geo.pdf")
+    pdf = PdfPages("../outputs/dipoles_alltogther_same_geo_v1.1.pdf")
     rmse_dipole_dict = defaultdict(dict)
     rmse_angle_dict = defaultdict(dict)
+    angle_dict = json.load(
+        open("./angle_indices_for_single_points.txt")
+    )
     for i, index in enumerate(df_mp2.index):
         ref_dipoles = (
             np.array(df_mp2.loc[index, REF_SPEC][0]["dipoles"]) * ESU_BOHR_TO_DEBYE
         )
+
+
         mu_diff_with_ref = defaultdict(float)
         angle_diff_with_ref = defaultdict(float)
 
@@ -142,6 +145,7 @@ def main(data_pickle):
             if spec == REF_SPEC:
                 continue
             dipoles_spe = []
+            angles = angle_dict[str(i)]
             for kk in range(24):
                 dipoles_spe.append(
                     df_spe[("-".join([str(i), str(kk)]), methods[j], basis[j], spec)][
@@ -149,8 +153,15 @@ def main(data_pickle):
                     ]["scf_dipole_moment"]
                 )
             dipoles = np.array(dipoles_spe) * ESU_BOHR_TO_DEBYE
+            angles, dipoles = zip(*sorted(zip(angles, dipoles)))
+
+
             n_grid = len(dipoles)
+            if spec == 'mp2/aug-cc-pvtz':
+                print(i)
             for k, item in enumerate(dipoles):
+                if spec == 'mp2/aug-cc-pvtz':
+                    print(k, item, ref_dipoles[k])
                 mu_diff, angle_diff = diff_between_vectors(item, ref_dipoles[k])
                 mu_diff_with_ref[spec] += mu_diff * mu_diff
                 angle_diff_with_ref[spec] += angle_diff * angle_diff
@@ -235,7 +246,7 @@ def main(data_pickle):
     )
     print("* closer to zero the better")
     #
-    with open("../outputs/dipoles_analysis_scores_same_geo.txt", "w") as f:
+    with open("../outputs/dipoles_analysis_scores_same_geo_v1.1.txt", "w") as f:
         f.write("Using " + REF_SPEC + " as a reference method the scores are: \n")
         f.write(
             tabulate(
