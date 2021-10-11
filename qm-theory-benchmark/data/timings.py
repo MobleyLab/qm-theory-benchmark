@@ -137,7 +137,7 @@ for same_cpu_key in same_cpu_keys:
     fig, ax = plt.subplots(figsize=[10, 8])
     plt.yscale('log')
     plt.bar(x_pos, tims, width)
-    plt.xticks(x_pos + width / 2, keys, rotation=60, ha="right")
+    plt.xticks(x_pos, keys, rotation=60, ha="right")
     plt.ylabel("Wall time in seconds (in log scale)")
     plt.title("mol: " + str(same_cpu_key) +", CPU: "+ cpu_name[str(same_cpu_key)] +", # of threads: "+ str(threads[str(
         same_cpu_key)]))
