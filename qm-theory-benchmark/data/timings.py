@@ -1,11 +1,17 @@
+import io
 import pickle
 from collections import defaultdict
+
+from PIL import Image
 from matplotlib import pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
+import pandas as pd
+from openff.toolkit.topology import Molecule
 
+from visualization import show_oemol_struc
 
-with open("spe-recs.pkl", "rb") as outfile:
+with open("../qca-util-scripts/spe-recs.pkl", "rb") as outfile:
     spe_data = pickle.load(outfile)
 
 
@@ -109,7 +115,19 @@ for key, val in same_cpu.items():
         print(key, all(val))
 
 pdf = PdfPages("../outputs/timings_spe_benchmark.pdf")
+df_mp2 = pd.read_pickle("./torsiondrive_data.pkl")
+indices = df_mp2.index
 for same_cpu_key in same_cpu_keys:
+    mapped_smiles = df_mp2.loc[indices[int(same_cpu_key)], "MP2/heavy-aug-cc-pVTZ"][0]["mapped_smiles"]
+    dihedrals = df_mp2.loc[indices[int(same_cpu_key)], "MP2/heavy-aug-cc-pVTZ"][0]["dihedrals"]
+    offmol = Molecule.from_mapped_smiles(mapped_smiles)
+    oemol = offmol.to_openeye()
+    image = show_oemol_struc(
+        oemol, torsions=True, atom_indices=dihedrals, width=600, height=500
+    )
+    img = Image.open(io.BytesIO(image.data))
+    im_arr = np.asarray(img)
+
     times = []
     for key in keywords_list:
         times.append(wall_time[(int(same_cpu_key), key)])
@@ -123,6 +141,9 @@ for same_cpu_key in same_cpu_keys:
     plt.ylabel("Wall time in seconds (in log scale)")
     plt.title("mol: " + str(same_cpu_key) +", CPU: "+ cpu_name[str(same_cpu_key)] +", # of threads: "+ str(threads[str(
         same_cpu_key)]))
+    newax = fig.add_axes([0.2, 0.5, 0.25, 0.25], anchor="SW", zorder=1)
+    newax.imshow(im_arr)
+    newax.axis("off")
     plt.show()
     pdf.savefig(fig, dpi=600, bbox_inches="tight")
 
