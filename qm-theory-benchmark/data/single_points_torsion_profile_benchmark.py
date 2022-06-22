@@ -82,14 +82,15 @@ def get_rmse_score(spec_ener_dict):
     "data_pickle",
     type=click.STRING,
     required=False,
-    default="/home/maverick/Desktop/OpenFF/dev-dir/qm-theory-benchmark/qm-theory-benchmark/qcainspect/spe-recs.pkl",
+    default="/home/maverick/Desktop/OpenFF/dev-dir/qm-theory-benchmark/qm-theory-benchmark/data/qm-single-point"
+            "-energies-updated.pkl",
     help="pickle file in which the energies dict is stored",
 )
 def main(data_pickle):
     df_spe = pd.read_pickle(data_pickle)
-    df_mp2 = pd.read_pickle("./torsiondrive_data_init_mols.pkl")
-    rcParams.update({"font.size": 14})
-    KELLYS_COLORS = [
+    df_mp2 = pd.read_pickle("./torsiondrive_data.pkl")
+    rcParams.update({"font.size": 10})
+    COLORS = [
         "#ebce2b",
         "#db6917",
         "#96cde6",
@@ -111,87 +112,112 @@ def main(data_pickle):
         "#7e1510",
         "#91218c",
         "#01a263",
+        "#fecb00",
+        "#cd0d2d",
+        "#00247d",
+        "#89731d",
+        "#db254c",
+        "#dc248e",
     ]
-    pdf = PdfPages("../outputs/torsions_alltogether_ccsd_cbs_ref.pdf")
+    pdf = PdfPages("../outputs/torsions_alltogether_ccsd_cbs_ref_b3lyp_single_basis.pdf")
+    # for the sake of querying convenience listing out the keywords, methods and basis_sets sets explicitly
     keywords_list = [
         "default",
         "b3lyp-nl/dzvp",
-        "b3lyp-d3bj/def2-tzvp",
-        "b3lyp-d3bj/def2-tzvpd",
-        "b3lyp-d3bj/def2-tzvpp",
-        "b3lyp-d3bj/def2-tzvppd",
-        "b3lyp-d3bj/def2-qzvp",
-        "b3lyp-d3bj/6-31+g**",
-        "b3lyp-d3bj/6-311+g**",
-        # 'b97-d3bj/def2-tzvp',
+        # "b3lyp-d3bj/def2-tzvp",
+        # "b3lyp-d3bj/def2-tzvpd",
+        # "b3lyp-d3bj/def2-tzvpp",
+        # "b3lyp-d3bj/def2-tzvppd",
+        # "b3lyp-d3bj/def2-qzvp",
+        # "b3lyp-d3bj/6-31+g**",
+        # "b3lyp-d3bj/6-311+g**",
+        "b97-d3bj/def2-tzvp",
         "m05-2x-d3/dzvp",
         "m06-2x-d3/dzvp",
         "m08-hx-d3/dzvp",
-        # 'wb97x-d3bj/dzvp',
-        # 'wb97m-d3bj/dzvp',
+        # "wb97x-d3bj/dzvp", commented out since the dispersion energies are not handled properly in current qcf 
+        # version 
+        # for this functional
+        "wb97m-d3bj/dzvp",
         "wb97m-v/dzvp",
         "pw6b95-d3bj/dzvp",
         "pw6b95-d3/dzvp",
         "b3lyp-d3mbj/dzvp",
         "mp2/aug-cc-pvtz",
+        "mp2/heavy-aug-cc-pv(t+d)z",
         "dsd-blyp-d3bj/heavy-aug-cc-pvtz",
+    # "gfn1xtb",
+    # "gfn2xtb",
+    # # "gfnff",
+    # "ani2x",
         "df-ccsd(t)/cbs",
     ]
 
     methods = [
         "b3lyp-d3bj",
         "b3lyp-nl",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        # 'b97-d3bj',
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        "b97-d3bj",
         "m05-2x-d3",
         "m06-2x-d3",
         "m08-hx-d3",
-        # 'wb97x-d3bj',
-        # 'wb97m-d3bj',
+        # "wb97x-d3bj",
+        "wb97m-d3bj",
         "wb97m-v",
         "pw6b95-d3bj",
         "pw6b95-d3",
         "b3lyp-d3mbj",
         "mp2",
+        "mp2",
         "dsd-blyp-d3bj",
+    # "gfn1xtb",
+    # "gfn2xtb",
+    # # "gfnff", # Not including this because of issues with charged molecules https://github.com/grimme-lab/xtb/issues/539
+    # "ani2x",
         "mp2/heavy-aug-cc-pv[tq]z + d:ccsd(t)/heavy-aug-cc-pvdz",
     ]
-    basis = [
+
+    basis_sets = [
         "dzvp",
         "dzvp",
+        # "def2-tzvp",
+        # "def2-tzvpd",
+        # "def2-tzvpp",
+        # "def2-tzvppd",
+        # "def2-qzvp",
+        # "6-31+g**",
+        # "6-311+g**",
         "def2-tzvp",
-        "def2-tzvpd",
-        "def2-tzvpp",
-        "def2-tzvppd",
-        "def2-qzvp",
-        "6-31+g**",
-        "6-311+g**",
-        # 'def2-tzvp',
         "dzvp",
         "dzvp",
         "dzvp",
-        # 'dzvp',
-        # 'dzvp',
+        # "dzvp",
+        "dzvp",
         "dzvp",
         "dzvp",
         "dzvp",
         "dzvp",
         "aug-cc-pvtz",
+        "heavy-aug-cc-pv(t+d)z",
         "heavy-aug-cc-pvtz",
+        # None,
+        # None,
+        # None,
         None,
     ]
+    
     keywords_list.append("MP2/heavy-aug-cc-pVTZ")
 
     rmse = defaultdict(dict)
     mae = defaultdict(dict)
     angle_dict = json.load(
-        open("qm-theory-benchmark/data/angle_indices_for_single_points.txt")
+        open("./angle_indices_for_single_points.txt")
     )
     for i, index in enumerate(df_mp2.index):
         ref_angles = angle_dict[str(i)]
@@ -205,7 +231,7 @@ def main(data_pickle):
                         None,
                         "df-ccsd(t)/cbs",
                     )
-                ]["method_return_energy"]
+                ]["method_returned_energy"]
             )
 
         energy_min = min(energies_spe)
@@ -234,12 +260,19 @@ def main(data_pickle):
                 continue
 
             if j != len(keywords_list) - 1:
+                # some ani calculations didn't run because of lack of element converage, this if conditional
+                # is to check for empty dicts
+                if methods[j] == "ani2x":
+                    if not df_spe[("-".join([str(i), str(0)]), methods[j], basis_sets[j], spec)]:
+                        continue
                 angles = angle_dict[str(i)]
                 energies_spe = []
+
                 for kk in range(24):
-                    if "method_return_energy" in list(
+
+                    if "method_returned_energy" in list(
                         df_spe[
-                            ("-".join([str(i), str(kk)]), methods[j], basis[j], spec)
+                            ("-".join([str(i), str(kk)]), methods[j], basis_sets[j], spec)
                         ].keys()
                     ):
                         energies_spe.append(
@@ -247,10 +280,10 @@ def main(data_pickle):
                                 (
                                     "-".join([str(i), str(kk)]),
                                     methods[j],
-                                    basis[j],
+                                    basis_sets[j],
                                     spec,
                                 )
-                            ]["method_return_energy"]
+                            ]["method_returned_energy"]
                         )
                     else:
                         energies_spe.append(
@@ -258,10 +291,10 @@ def main(data_pickle):
                                 (
                                     "-".join([str(i), str(kk)]),
                                     methods[j],
-                                    basis[j],
+                                    basis_sets[j],
                                     spec,
                                 )
-                            ]["scf_plus_disp_return_energy"]
+                            ]["scf_plus_dispersion_energy"]
                         )
 
                 energy_min = min(energies_spe)
@@ -289,7 +322,7 @@ def main(data_pickle):
                     "-v",
                     label=spec,
                     linewidth=2.0,
-                    c=KELLYS_COLORS[j + 1],
+                    c=COLORS[j + 1],
                     markersize=10,
                 )
             elif spec == REF_SPEC:
@@ -299,7 +332,7 @@ def main(data_pickle):
                     "-o",
                     label=REF_SPEC,
                     linewidth=2.0,
-                    c=KELLYS_COLORS[j + 1],
+                    c=COLORS[j + 1],
                 )
             else:
                 ax.plot(
@@ -308,14 +341,14 @@ def main(data_pickle):
                     "-o",
                     label=spec,
                     linewidth=2.0,
-                    c=KELLYS_COLORS[j + 1],
+                    c=COLORS[j + 1],
                 )
 
         plt.xlabel(
             "Dihedral angle in degrees",
         )
         plt.ylabel("Relative energies in kcal/mol")
-        plt.legend(loc="lower left", bbox_to_anchor=(1.04, 0), fontsize=12)
+        plt.legend(loc="lower left", bbox_to_anchor=(1.04, 0), fontsize=8)
         offmol = Molecule.from_mapped_smiles(mapped_smiles)
         oemol = offmol.to_openeye()
         image = show_oemol_struc(
@@ -362,13 +395,13 @@ def main(data_pickle):
     # Position of bars on x-axis
     x_pos = np.arange(len(xlabels))
 
-    plt.bar(x_pos, rmse_vals, width, color=KELLYS_COLORS[1], label="RMSE")
-    plt.bar(x_pos + width, mae_vals, width, color=KELLYS_COLORS[2], label="MAE")
+    plt.bar(x_pos, rmse_vals, width, color=COLORS[1], label="RMSE")
+    plt.bar(x_pos + width, mae_vals, width, color=COLORS[2], label="MAE")
     # Rotation of the bars names
     plt.xticks(x_pos + width / 2, xlabels, rotation=60, ha="right")
     plt.xlabel("Scores of various methods wrt " + REF_SPEC)
     plt.ylabel("RMSE, MAE in kcal/mol")
-    plt.legend(loc="upper left", fontsize=12)
+    plt.legend(loc="upper left", fontsize=8)
     plt.show()
     pdf.savefig(fig, dpi=600, bbox_inches="tight")
 
@@ -377,7 +410,7 @@ def main(data_pickle):
     ax = sns.boxplot(data=df)
     ax = sns.swarmplot(data=df, size=3, color="0.25")
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
-    ax.xaxis.get_label().set_fontsize(12)
+    ax.xaxis.get_label().set_fontsize(8)
     ax.set(ylabel="RMSE in kcal/mol")
     ax.yaxis.get_label().set_fontsize(10)
     fig = ax.get_figure()
@@ -388,7 +421,7 @@ def main(data_pickle):
     ax = sns.boxplot(data=df)
     ax = sns.swarmplot(data=df, size=3, color="0.25")
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
-    ax.xaxis.get_label().set_fontsize(12)
+    ax.xaxis.get_label().set_fontsize(8)
     ax.set(ylabel="MAE in kcal/mol")
     ax.yaxis.get_label().set_fontsize(10)
     fig = ax.get_figure()
@@ -404,7 +437,7 @@ def main(data_pickle):
     )
     print("* closer to zero the better")
 
-    with open("../outputs/torsion_spe_analysis_scores.txt", "w") as f:
+    with open("../outputs/torsion_spe_analysis_scores_b3lyp_single_basis.txt", "w") as f:
         f.write("Using " + REF_SPEC + " as a reference method the scores are: \n")
         f.write(
             tabulate(

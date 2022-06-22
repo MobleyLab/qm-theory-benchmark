@@ -24,6 +24,7 @@ ESU_BOHR_TO_DEBYE = ESU_BOHR.conversion_factor_to(unit.debye)
 BOLTZMANN_CONSTANT = unit.constants.BOLTZMANN_CONSTANT_kB
 REF_SPEC = "MP2/heavy-aug-cc-pVTZ"
 
+
 def diff_between_vectors(vec1, vec2):
     """
     gives out the magnitude difference and angle between vectors
@@ -47,96 +48,99 @@ def diff_between_vectors(vec1, vec2):
     "data_pickle",
     type=click.STRING,
     required=False,
-    default="/home/maverick/Desktop/OpenFF/dev-dir/qm-theory-benchmark/qm-theory-benchmark/qca-util-scripts/spe-recs.pkl",
+    default="/home/maverick/Desktop/OpenFF/dev-dir/qm-theory-benchmark/qm-theory-benchmark/data/qm-single-point"
+            "-energies.pkl",
     help="pickle file in which the energies dict is stored",
 )
 def main(data_pickle):
     df_spe = pd.read_pickle(data_pickle)
     df_mp2 = pd.read_pickle("./torsiondrive_data.pkl")
-    rcParams.update({"font.size": 14})
-
+    rcParams.update({"font.size": 12})
     keywords_list = [
         "default",
         "b3lyp-nl/dzvp",
-        "b3lyp-d3bj/def2-tzvp",
-        "b3lyp-d3bj/def2-tzvpd",
-        "b3lyp-d3bj/def2-tzvpp",
-        "b3lyp-d3bj/def2-tzvppd",
-        "b3lyp-d3bj/def2-qzvp",
-        "b3lyp-d3bj/6-31+g**",
-        "b3lyp-d3bj/6-311+g**",
-        # 'b97-d3bj/def2-tzvp',
+        # "b3lyp-d3bj/def2-tzvp",
+        # "b3lyp-d3bj/def2-tzvpd",
+        # "b3lyp-d3bj/def2-tzvpp",
+        # "b3lyp-d3bj/def2-tzvppd",
+        # "b3lyp-d3bj/def2-qzvp",
+        # "b3lyp-d3bj/6-31+g**",
+        # "b3lyp-d3bj/6-311+g**",
+        "b97-d3bj/def2-tzvp",
         "m05-2x-d3/dzvp",
         "m06-2x-d3/dzvp",
         "m08-hx-d3/dzvp",
-        # 'wb97x-d3bj/dzvp',
-        # 'wb97m-d3bj/dzvp',
+        # "wb97x-d3bj/dzvp", commented out since the dispersion energies are not handled properly in current qcf
+        # version
+        # for this functional
+        "wb97m-d3bj/dzvp",
         "wb97m-v/dzvp",
         "pw6b95-d3bj/dzvp",
         "pw6b95-d3/dzvp",
         "b3lyp-d3mbj/dzvp",
         "mp2/aug-cc-pvtz",
+        "mp2/heavy-aug-cc-pv(t+d)z",
         "dsd-blyp-d3bj/heavy-aug-cc-pvtz",
     ]
 
     methods = [
         "b3lyp-d3bj",
         "b3lyp-nl",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        "b3lyp-d3bj",
-        # 'b97-d3bj',
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        # "b3lyp-d3bj",
+        "b97-d3bj",
         "m05-2x-d3",
         "m06-2x-d3",
         "m08-hx-d3",
-        # 'wb97x-d3bj',
-        # 'wb97m-d3bj',
+        # "wb97x-d3bj",
+        "wb97m-d3bj",
         "wb97m-v",
         "pw6b95-d3bj",
         "pw6b95-d3",
         "b3lyp-d3mbj",
         "mp2",
+        "mp2",
         "dsd-blyp-d3bj",
     ]
-    basis = [
+
+    basis_sets = [
         "dzvp",
         "dzvp",
+        # "def2-tzvp",
+        # "def2-tzvpd",
+        # "def2-tzvpp",
+        # "def2-tzvppd",
+        # "def2-qzvp",
+        # "6-31+g**",
+        # "6-311+g**",
         "def2-tzvp",
-        "def2-tzvpd",
-        "def2-tzvpp",
-        "def2-tzvppd",
-        "def2-qzvp",
-        "6-31+g**",
-        "6-311+g**",
-        # 'def2-tzvp',
         "dzvp",
         "dzvp",
         "dzvp",
-        # 'dzvp',
-        # 'dzvp',
+        # "dzvp",
+        "dzvp",
         "dzvp",
         "dzvp",
         "dzvp",
         "dzvp",
         "aug-cc-pvtz",
+        "heavy-aug-cc-pv(t+d)z",
         "heavy-aug-cc-pvtz",
     ]
 
     pdf = PdfPages("../outputs/dipoles_alltogther_same_geo_v1.1.pdf")
     rmse_dipole_dict = defaultdict(dict)
     rmse_angle_dict = defaultdict(dict)
-    angle_dict = json.load(
-        open("./angle_indices_for_single_points.txt")
-    )
+    angle_dict = json.load(open("./angle_indices_for_single_points.txt"))
     for i, index in enumerate(df_mp2.index):
         ref_dipoles = (
             np.array(df_mp2.loc[index, REF_SPEC][0]["dipoles"]) * ESU_BOHR_TO_DEBYE
         )
-
 
         mu_diff_with_ref = defaultdict(float)
         angle_diff_with_ref = defaultdict(float)
@@ -146,21 +150,21 @@ def main(data_pickle):
                 continue
             dipoles_spe = []
             angles = angle_dict[str(i)]
+            print(spec)
             for kk in range(24):
                 dipoles_spe.append(
-                    df_spe[("-".join([str(i), str(kk)]), methods[j], basis[j], spec)][
+                    df_spe[("-".join([str(i), str(kk)]), methods[j], basis_sets[j], spec)][
                         "properties"
                     ]["scf_dipole_moment"]
                 )
             dipoles = np.array(dipoles_spe) * ESU_BOHR_TO_DEBYE
             angles, dipoles = zip(*sorted(zip(angles, dipoles)))
 
-
             n_grid = len(dipoles)
-            if spec == 'mp2/aug-cc-pvtz':
+            if spec == "mp2/aug-cc-pvtz":
                 print(i)
             for k, item in enumerate(dipoles):
-                if spec == 'mp2/aug-cc-pvtz':
+                if spec == "mp2/aug-cc-pvtz":
                     print(k, item, ref_dipoles[k])
                 mu_diff, angle_diff = diff_between_vectors(item, ref_dipoles[k])
                 mu_diff_with_ref[spec] += mu_diff * mu_diff
