@@ -1,7 +1,4 @@
-qm-theory-benchmark
-
-==============================
-QM theory benchmark for force field fitting data.
+### QM theory benchmark for force field fitting data.
 
 File manifest
 -------------
