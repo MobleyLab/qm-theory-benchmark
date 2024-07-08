@@ -1,6 +1,5 @@
 # Data for different functionals and reference data.
 
-Most of the files were named as `functional_basis_single_points_data.json`
 
 For the MP2 geometries at which these single points were performed the data is in the file "MP2_heavy-aug-cc-pVTZ_torsiondrive_data.json", and the data structure follows:
 
@@ -15,7 +14,7 @@ For the MP2 geometries at which these single points were performed the data is i
                     "dipoles": [list of corresponding dipole vectors for each angle index in atomic units]] 
 ```
 
-The data per functional and basis set combination is arranged as follows:
+Most of the files were named as `functional_basis_single_points_data.json`. The data per functional and basis set combination is arranged as follows:
 
 ```
 {"molecule index": {"angles": [list of dihedral angles], 
@@ -25,3 +24,10 @@ The data per functional and basis set combination is arranged as follows:
                    "dipoles": [list of corresponding dipole vectors for each angle index in atomic units]},
                    ...}
 ```                   
+
+The data is in nested dictionary and can be read using 
+```
+import json
+
+data = json.load(open('file_name.json'))
+```
